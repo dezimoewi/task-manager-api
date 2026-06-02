@@ -17,10 +17,6 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
-/**
- * Execute a parameterized SQL query against the pool.
- * All queries MUST use parameterized values ($1, $2, ...) to prevent SQL injection.
- */
 module.exports = {
   query: (text, params) => pool.query(text, params),
   pool,

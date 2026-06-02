@@ -38,7 +38,6 @@ const getTasks = async ({ user_id, status, due_before, limit, offset }) => {
 
   const result = await db.query(query, params);
 
-  // Get total count for pagination
   let countQuery = `
     SELECT COUNT(*) FROM tasks t
     WHERE (t.created_by = $1 OR t.assigned_to = $1)
@@ -100,7 +99,6 @@ const updateTask = async (taskId, updates) => {
 };
 
 const completeTask = async (taskId) => {
-  // Atomic update: only touches the status column to avoid race conditions
   const result = await db.query(
     `UPDATE tasks SET status = 'done', updated_at = NOW() WHERE id = $1 RETURNING *`,
     [taskId]

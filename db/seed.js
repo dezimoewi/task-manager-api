@@ -9,7 +9,6 @@ const seed = async () => {
 
     console.log('Creating schema...');
 
-    // Create users table
     await db.query(`
       CREATE TABLE users (
         id SERIAL PRIMARY KEY,
@@ -21,7 +20,6 @@ const seed = async () => {
       );
     `);
 
-    // Create tasks table with CHECK constraint
     await db.query(`
       CREATE TABLE tasks (
         id SERIAL PRIMARY KEY,
@@ -37,7 +35,6 @@ const seed = async () => {
       );
     `);
 
-    // Create indexes
     await db.query('CREATE INDEX idx_tasks_created_by ON tasks(created_by)');
     await db.query('CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to)');
     await db.query('CREATE INDEX idx_tasks_status ON tasks(status)');
