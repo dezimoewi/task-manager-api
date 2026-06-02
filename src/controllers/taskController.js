@@ -1,126 +1,135 @@
-const { query, body, param, validationResult } = require('express-validator');
-const taskModel = require('../models/taskModel');
 const taskService = require('../services/taskService');
 
-const listTasks = [
-  // query validators
-  query('status').optional().isIn(['todo', 'in-progress', 'done']),
-  query('due_before').optional().isISO8601(),
-  query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
-  query('offset').optional().isInt({ min: 0 }).toInt(),
-
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-      const { status, due_before, limit = 10, offset = 0, sort_by, sort_dir } = req.query;
-      // If user is authenticated, show tasks created_by or assigned_to to them or public unassigned tasks.
-      // For simplicity we'll return:
-      // - if authenticated: tasks where created_by = user OR assigned_to = user OR assigned_to IS NULL
-      // - if not authenticated: only tasks where assigned_to IS NULL
-      const opts = { status, due_before, limit, offset, sort_by, sort_dir };
-      let rows = await taskModel.list(opts);
-
-      if (req.user) {
-        const uid = req.user.user_id;
-        rows = rows.filter(t => t.created_by === uid || t.assigned_to === uid || t.assigned_to === null);
-      } else {
-        rows = rows.filter(t => t.assigned_to === null);
-      }
-
-      res.json({ count: rows.length, tasks: rows });
-    } catch (err) {
-      next(err);
-    }
+const createTask = async (req, res, next) => {
+  try {
+    const task = await taskService.createTask({
+      ...req.body,
+      created_by: req.user.id,
+    });
+    res.status(201).json({
+      success: true,
+      message: 'Task created successfully',
+      data: task,
+    });
+  } catch (err) {
+    next(err);
   }
-];
+};
 
-const getTaskById = [
-  param('id').isInt().toInt(),
-  async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const uid = req.user.user_id;
-      const task = await taskService.getTaskForUser(Number(id), uid);
-      res.json(task);
-    } catch (err) {
-      next(err);
-    }
+const getTasks = async (req, res, next) => {
+  try {
+    const { status, due_before, page, limit } = req.query;
+    const offset = (page - 1) * limit;
+
+    const { tasks, total } = await taskService.getTasks({
+      user_id: req.user.id,
+      status,
+      due_before,
+      limit,
+      offset,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        tasks,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
   }
-];
+};
 
-const createTask = [
-  body('title').isLength({ min: 1, max: 255 }),
-  body('description').optional().isString(),
-  body('due_date').optional().isISO8601(),
-  body('assigned_to').optional().isInt({ min: 1 }).toInt(),
+const getTaskById = async (req, res, next) => {
+  try {
+    const task = await taskService.getTaskById(req.params.id);
 
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-      const { title, description, due_date, assigned_to } = req.body;
-      const created_by = req.user.user_id;
-
-      const task = await taskService.createTask({ title, description, due_date, assigned_to, created_by });
-      res.status(201).json(task);
-    } catch (err) {
-      next(err);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
     }
-  }
-];
 
-const updateTask = [
-  param('id').isInt().toInt(),
-  body('title').optional().isLength({ min: 1, max: 255 }),
-  body('description').optional().isString(),
-  body('due_date').optional().isISO8601(),
-  body('assigned_to').optional().isInt({ min: 1 }).toInt(),
-  body('status').optional().isIn(['todo','in-progress','done']),
-
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-      const changes = {};
-      const allowed = ['title','description','due_date','assigned_to','status'];
-      for (const k of allowed) {
-        if (req.body[k] !== undefined) changes[k] = req.body[k];
-      }
-
-      const updated = await taskService.updateTask(Number(req.params.id), req.user.user_id, changes);
-      res.json(updated);
-    } catch (err) {
-      next(err);
+    // Only creator or assignee can view
+    if (task.created_by !== req.user.id && task.assigned_to !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
-  }
-];
 
-const deleteTask = [
-  param('id').isInt().toInt(),
-  async (req, res, next) => {
-    try {
-      const deleted = await taskService.deleteTask(Number(req.params.id), req.user.user_id);
-      res.json({ deleted });
-    } catch (err) {
-      next(err);
+    res.json({ success: true, data: task });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateTask = async (req, res, next) => {
+  try {
+    const task = await taskService.getTaskById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
     }
-  }
-];
 
-const completeTask = [
-  param('id').isInt().toInt(),
-  async (req, res, next) => {
-    try {
-      const updated = await taskService.updateTask(Number(req.params.id), req.user.user_id, { status: 'done' });
-      res.json(updated);
-    } catch (err) {
-      next(err);
+    // Only creator or assignee can update
+    if (task.created_by !== req.user.id && task.assigned_to !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
-  }
-];
 
-module.exports = { listTasks, getTaskById, createTask, updateTask, deleteTask, completeTask };
+    // Prevent 'done' to 'todo' transition
+    if (task.status === 'done' && req.body.status === 'todo') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot transition from done to todo',
+      });
+    }
+
+    const updated = await taskService.updateTask(req.params.id, req.body);
+    res.json({ success: true, message: 'Task updated', data: updated });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const completeTask = async (req, res, next) => {
+  try {
+    const task = await taskService.getTaskById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    if (task.created_by !== req.user.id && task.assigned_to !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    if (task.status === 'done') {
+      return res.status(400).json({ success: false, message: 'Task is already completed' });
+    }
+
+    const completed = await taskService.completeTask(req.params.id);
+    res.json({ success: true, message: 'Task marked as done', data: completed });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getOverdueTasks = async (req, res, next) => {
+  try {
+    const tasks = await taskService.getOverdueTasks(req.user.id);
+    res.json({ success: true, data: tasks });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  createTask,
+  getTasks,
+  getTaskById,
+  updateTask,
+  completeTask,
+  getOverdueTasks,
+};

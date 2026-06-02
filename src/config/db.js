@@ -1,12 +1,27 @@
-const { Pool } = require("pg");
-require("dotenv").config();
+const { Pool } = require('pg');
+const config = require('./index');
 
 const pool = new Pool({
-  user: process.env.DB_USER,       // task_admin
-  host: process.env.DB_HOST,       // localhost
-  database: process.env.DB_NAME,   // task_manager
-  password: process.env.DB_PASSWORD, // Task@1234
-  port: process.env.DB_PORT,       // 5432
+  user: config.db.user,
+  host: config.db.host,
+  database: config.db.database,
+  password: config.db.password,
+  port: config.db.port,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-module.exports = pool;
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
+/**
+ * Execute a parameterized SQL query against the pool.
+ * All queries MUST use parameterized values ($1, $2, ...) to prevent SQL injection.
+ */
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  pool,
+};
