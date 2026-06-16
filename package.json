@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+    "migrate": "node -e \"require('./src/config/migrate')()\"",
     "seed": "node db/seed.js",
-    "test": "jest --forceExit --detectOpenHandles",
+    "test": "jest --forceExit --detectOpenHandles --runInBand",
     "lint": "echo \"Add eslint for linting\""
   },
   "repository": {

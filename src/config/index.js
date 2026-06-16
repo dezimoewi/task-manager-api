@@ -3,6 +3,7 @@ require('dotenv').config();
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
+  databaseUrl: process.env.DATABASE_URL || null,
   db: {
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',

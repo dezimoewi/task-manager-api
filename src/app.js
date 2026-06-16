@@ -43,9 +43,15 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 if (require.main === module) {
-  app.listen(config.port, () => {
-    console.log(`Server running on port ${config.port}`);
-    console.log(`API Docs: http://localhost:${config.port}/api-docs`);
+  const migrate = require('./config/migrate');
+  migrate().then(() => {
+    app.listen(config.port, () => {
+      console.log(`Server running on port ${config.port}`);
+      console.log(`API Docs: http://localhost:${config.port}/api-docs`);
+    });
+  }).catch((err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   });
 }
 
