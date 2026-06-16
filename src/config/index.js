@@ -12,7 +12,7 @@ module.exports = {
     password: process.env.DB_PASSWORD || 'postgres',
   },
   jwt: {
-    secret: process.env.JWT_SECRET,
+    secret: process.env.JWT_SECRET || 'dev_fallback_secret_key_123',
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
 };
