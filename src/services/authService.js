@@ -2,7 +2,6 @@ const db = require('../config/db');
 const { hashPassword, comparePassword, signToken } = require('../utils/auth');
 
 const register = async ({ username, email, password }) => {
-  // Check if user already exists
   const existingUser = await db.query(
     'SELECT id FROM users WHERE email = $1 OR username = $2',
     [email, username]

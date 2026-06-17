@@ -22,23 +22,22 @@ const getTasks = async ({ user_id, status, due_before, limit, offset }) => {
   let paramIndex = 2;
 
   if (status) {
-    query += ` AND t.status = $${paramIndex}`;
+    query += ` AND t.status = $` + String(paramIndex);
     params.push(status);
     paramIndex++;
   }
 
   if (due_before) {
-    query += ` AND t.due_date <= $${paramIndex}`;
+    query += ` AND t.due_date <= $` + String(paramIndex);
     params.push(due_before);
     paramIndex++;
   }
 
-  query += ` ORDER BY t.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  query += ` ORDER BY t.created_at DESC LIMIT $` + String(paramIndex) + ` OFFSET $` + String(paramIndex + 1);
   params.push(limit, offset);
 
   const result = await db.query(query, params);
 
-  // Get total count for pagination
   let countQuery = `
     SELECT COUNT(*) FROM tasks t
     WHERE (t.created_by = $1 OR t.assigned_to = $1)
@@ -47,13 +46,13 @@ const getTasks = async ({ user_id, status, due_before, limit, offset }) => {
   let countIndex = 2;
 
   if (status) {
-    countQuery += ` AND t.status = $${countIndex}`;
+    countQuery += ` AND t.status = $` + String(countIndex);
     countParams.push(status);
     countIndex++;
   }
 
   if (due_before) {
-    countQuery += ` AND t.due_date <= $${countIndex}`;
+    countQuery += ` AND t.due_date <= $` + String(countIndex);
     countParams.push(due_before);
     countIndex++;
   }
@@ -83,7 +82,7 @@ const updateTask = async (taskId, updates) => {
 
   for (const [key, value] of Object.entries(updates)) {
     if (value !== undefined) {
-      fields.push(`${key} = $${paramIndex}`);
+      fields.push(key + ` = $` + String(paramIndex));
       params.push(value);
       paramIndex++;
     }
@@ -93,14 +92,13 @@ const updateTask = async (taskId, updates) => {
   params.push(taskId);
 
   const result = await db.query(
-    `UPDATE tasks SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    `UPDATE tasks SET ` + fields.join(', ') + ` WHERE id = $` + String(paramIndex) + ` RETURNING *`,
     params
   );
   return result.rows[0];
 };
 
 const completeTask = async (taskId) => {
-  // Atomic update: only touches the status column to avoid race conditions
   const result = await db.query(
     `UPDATE tasks SET status = 'done', updated_at = NOW() WHERE id = $1 RETURNING *`,
     [taskId]

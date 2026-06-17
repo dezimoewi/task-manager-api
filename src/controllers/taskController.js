@@ -54,7 +54,6 @@ const getTaskById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    // Only creator or assignee can view
     if (task.created_by !== req.user.id && task.assigned_to !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -73,12 +72,10 @@ const updateTask = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    // Only creator or assignee can update
     if (task.created_by !== req.user.id && task.assigned_to !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
-    // Prevent 'done' to 'todo' transition
     if (task.status === 'done' && req.body.status === 'todo') {
       return res.status(400).json({
         success: false,
