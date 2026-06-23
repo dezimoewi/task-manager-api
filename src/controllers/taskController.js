@@ -18,7 +18,9 @@ const createTask = async (req, res, next) => {
 
 const getTasks = async (req, res, next) => {
   try {
-    const { status, due_before, page, limit } = req.query;
+    const { status, due_before } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
     const { tasks, total } = await taskService.getTasks({
